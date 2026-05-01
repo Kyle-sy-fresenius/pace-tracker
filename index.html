@@ -10,9 +10,8 @@
       padding: 30px;
     }
 
-    #time {
-      font-size: 28px;
-      margin-bottom: 20px;
+    canvas {
+      margin-bottom: 15px;
     }
 
     input {
@@ -22,12 +21,12 @@
     }
 
     .box {
-      margin-top: 20px;
+      margin-top: 15px;
       font-size: 22px;
     }
 
     #status {
-      margin-top: 25px;
+      margin-top: 20px;
       font-size: 26px;
       font-weight: bold;
       padding: 12px;
@@ -42,13 +41,16 @@
 </head>
 <body>
 
-<div id="time">--:--</div>
+<h2>Pace Tracker</h2>
+
+<canvas id="clock" width="180" height="180"></canvas>
+
+<br>
 
 <input id="input" type="number" placeholder="Enter number + Enter">
 
 <div class="box" id="total">Total: 0</div>
 <div class="box" id="target">Target: 0</div>
-<div class="box" id="diff">Difference: 0</div>
 
 <div id="status" class="red">Behind Pace</div>
 
@@ -56,10 +58,8 @@
   let sum = 0;
 
   const input = document.getElementById("input");
-  const timeDiv = document.getElementById("time");
   const totalDiv = document.getElementById("total");
   const targetDiv = document.getElementById("target");
-  const diffDiv = document.getElementById("diff");
   const statusDiv = document.getElementById("status");
 
   input.addEventListener("keydown", e => {
@@ -90,16 +90,10 @@
   }
 
   function update() {
-    const now = new Date();
     const target = Math.floor(getTarget());
-    const diff = sum - target;
 
-    timeDiv.textContent = now.toLocaleTimeString();
     totalDiv.textContent = "Total: " + sum;
     targetDiv.textContent = "Target: " + target;
-
-    diffDiv.textContent = 
-      diff >= 0 ? "Ahead: +" + diff : "Behind: " + diff;
 
     let ratio = target === 0 ? 1 : sum / target;
 
@@ -110,12 +104,53 @@
       statusDiv.textContent = "Close";
       statusDiv.className = "orange";
     } else {
-      statusDiv.textContent = "Behind";
+      statusDiv.textContent = "Behind Pace";
       statusDiv.className = "red";
     }
   }
 
-  setInterval(update, 1000);
+  // -------- CLOCK --------
+  const canvas = document.getElementById("clock");
+  const ctx = canvas.getContext("2d");
+  const r = canvas.height / 2;
+  ctx.translate(r, r);
+
+  function drawClock() {
+    const now = new Date();
+    ctx.clearRect(-r, -r, canvas.width, canvas.height);
+
+    // face
+    ctx.beginPath();
+    ctx.arc(0, 0, r - 5, 0, 2 * Math.PI);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+    ctx.stroke();
+
+    const hour = now.getHours() % 12;
+    const min = now.getMinutes();
+    const sec = now.getSeconds();
+
+    drawHand((hour + min / 60) * Math.PI / 6, r * 0.5, 5);
+    drawHand(min * Math.PI / 30, r * 0.7, 3);
+    drawHand(sec * Math.PI / 30, r * 0.8, 2, "red");
+  }
+
+  function drawHand(pos, length, width, color = "#000") {
+    ctx.beginPath();
+    ctx.lineWidth = width;
+    ctx.strokeStyle = color;
+    ctx.lineCap = "round";
+    ctx.moveTo(0, 0);
+    ctx.rotate(pos);
+    ctx.lineTo(0, -length);
+    ctx.stroke();
+    ctx.rotate(-pos);
+  }
+
+  setInterval(() => {
+    drawClock();
+    update();
+  }, 1000);
 </script>
 
 </body>
