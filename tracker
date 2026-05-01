@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pace Tracker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 30px;
+    }
+
+    #time {
+      font-size: 28px;
+      margin-bottom: 20px;
+    }
+
+    input {
+      padding: 10px;
+      font-size: 18px;
+      width: 220px;
+    }
+
+    .box {
+      margin-top: 20px;
+      font-size: 22px;
+    }
+
+    #status {
+      margin-top: 25px;
+      font-size: 26px;
+      font-weight: bold;
+      padding: 12px;
+      color: white;
+      display: inline-block;
+    }
+
+    .red { background: #e74c3c; }
+    .orange { background: #f39c12; }
+    .green { background: #2ecc71; }
+  </style>
+</head>
+<body>
+
+<div id="time">--:--</div>
+
+<input id="input" type="number" placeholder="Enter number + Enter">
+
+<div class="box" id="total">Total: 0</div>
+<div class="box" id="target">Target: 0</div>
+<div class="box" id="diff">Difference: 0</div>
+
+<div id="status" class="red">Behind Pace</div>
+
+<script>
+  let sum = 0;
+
+  const input = document.getElementById("input");
+  const timeDiv = document.getElementById("time");
+  const totalDiv = document.getElementById("total");
+  const targetDiv = document.getElementById("target");
+  const diffDiv = document.getElementById("diff");
+  const statusDiv = document.getElementById("status");
+
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      const val = parseFloat(input.value);
+      if (!isNaN(val)) {
+        sum += val;
+        input.value = "";
+        update();
+      }
+    }
+  });
+
+  function getTarget() {
+    const now = new Date();
+
+    const start = new Date();
+    start.setHours(8, 30, 0, 0);
+
+    const end = new Date();
+    end.setHours(21, 30, 0, 0);
+
+    if (now < start) return 0;
+    if (now > end) return 13000;
+
+    const hours = (now - start) / (1000 * 60 * 60);
+    return hours * 1000;
+  }
+
+  function update() {
+    const now = new Date();
+    const target = Math.floor(getTarget());
+    const diff = sum - target;
+
+    timeDiv.textContent = now.toLocaleTimeString();
+    totalDiv.textContent = "Total: " + sum;
+    targetDiv.textContent = "Target: " + target;
+
+    diffDiv.textContent = 
+      diff >= 0 ? "Ahead: +" + diff : "Behind: " + diff;
+
+    let ratio = target === 0 ? 1 : sum / target;
+
+    if (ratio >= 1) {
+      statusDiv.textContent = "On Pace";
+      statusDiv.className = "green";
+    } else if (ratio >= 0.8) {
+      statusDiv.textContent = "Close";
+      statusDiv.className = "orange";
+    } else {
+      statusDiv.textContent = "Behind";
+      statusDiv.className = "red";
+    }
+  }
+
+  setInterval(update, 1000);
+</script>
+
+</body>
+</html>
