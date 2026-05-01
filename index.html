@@ -1,157 +1,139 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
   <title>Pace Tracker</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       text-align: center;
-      padding: 30px;
+      margin-top: 60px;
+      background: #f5f5f5;
     }
 
-    canvas {
-      margin-bottom: 15px;
+    h1 {
+      font-size: 42px;
     }
 
-    input {
-      padding: 10px;
-      font-size: 18px;
-      width: 220px;
-    }
-
-    .box {
-      margin-top: 15px;
-      font-size: 22px;
+    #indicator {
+      margin: 25px auto;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: red;
+      border: 5px solid black;
     }
 
     #status {
-      margin-top: 20px;
-      font-size: 26px;
+      font-size: 24px;
       font-weight: bold;
-      padding: 12px;
-      color: white;
-      display: inline-block;
     }
 
-    .red { background: #e74c3c; }
-    .orange { background: #f39c12; }
-    .green { background: #2ecc71; }
+    #progress {
+      font-size: 20px;
+    }
+
+    input {
+      font-size: 28px;
+      padding: 15px;
+      width: 260px;
+      text-align: center;
+      margin-top: 25px;
+    }
   </style>
 </head>
 <body>
 
-<h2>Pace Tracker</h2>
+  <h1>Total: <span id="total">0</span></h1>
 
-<canvas id="clock" width="180" height="180"></canvas>
+  <div id="indicator"></div>
 
-<br>
+  <p id="status">Enter a number</p>
+  <p id="progress">Progress: 0%</p>
 
-<input id="input" type="number" placeholder="Enter number + Enter">
+  <input
+    type="number"
+    id="numberInput"
+    placeholder="Enter number + Enter"
+    autofocus
+  >
 
-<div class="box" id="total">Total: 0</div>
-<div class="box" id="target">Target: 0</div>
+  <script>
+    let total = 0;
 
-<div id="status" class="red">Behind Pace</div>
+    const input = document.getElementById("numberInput");
+    const totalDisplay = document.getElementById("total");
+    const indicator = document.getElementById("indicator");
+    const statusText = document.getElementById("status");
+    const progressText = document.getElementById("progress");
 
-<script>
-  let sum = 0;
+    function getTargetByTime() {
+      const now = new Date();
 
-  const input = document.getElementById("input");
-  const totalDiv = document.getElementById("total");
-  const targetDiv = document.getElementById("target");
-  const statusDiv = document.getElementById("status");
+      const start = new Date();
+      start.setHours(8, 30, 0, 0);
 
-  input.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      const val = parseFloat(input.value);
-      if (!isNaN(val)) {
-        sum += val;
-        input.value = "";
-        update();
+      const threePM = new Date();
+      threePM.setHours(15, 0, 0, 0);
+
+      const eightPM = new Date();
+      eightPM.setHours(20, 0, 0, 0);
+
+      if (now <= start) return 0;
+
+      if (now <= threePM) {
+        const progress = (now - start) / (threePM - start);
+        return progress * 5000;
+      }
+
+      if (now <= eightPM) {
+        const progress = (now - threePM) / (eightPM - threePM);
+        return 5000 + progress * 5000;
+      }
+
+      return 10000; // cap after 8PM
+    }
+
+    function updateIndicator() {
+      const target = getTargetByTime();
+
+      let percent = 0;
+      if (target > 0) {
+        percent = (total / target) * 100;
+      }
+
+      progressText.textContent =
+        "Progress: " + percent.toFixed(1) + "% of current target";
+
+      if (total >= target) {
+        indicator.style.background = "green";
+        statusText.textContent = "Green - on track";
+      } else if (total >= target * 0.6) {
+        indicator.style.background = "orange";
+        statusText.textContent = "Orange - close";
+      } else {
+        indicator.style.background = "red";
+        statusText.textContent = "Red - behind";
       }
     }
-  });
 
-  function getTarget() {
-    const now = new Date();
+    input.addEventListener("keydown", function(event) {
+      if (event.key === "Enter") {
+        const number = Number(input.value);
 
-    const start = new Date();
-    start.setHours(8, 30, 0, 0);
+        if (!isNaN(number) && input.value !== "") {
+          total += number;
+          totalDisplay.textContent = total;
+          input.value = "";
+          input.focus();
+          updateIndicator();
+        }
+      }
+    });
 
-    const end = new Date();
-    end.setHours(21, 30, 0, 0);
-
-    if (now < start) return 0;
-    if (now > end) return 13000;
-
-    const hours = (now - start) / (1000 * 60 * 60);
-    return hours * 1000;
-  }
-
-  function update() {
-    const target = Math.floor(getTarget());
-
-    totalDiv.textContent = "Total: " + sum;
-    targetDiv.textContent = "Target: " + target;
-
-    let ratio = target === 0 ? 1 : sum / target;
-
-    if (ratio >= 1) {
-      statusDiv.textContent = "On Pace";
-      statusDiv.className = "green";
-    } else if (ratio >= 0.8) {
-      statusDiv.textContent = "Close";
-      statusDiv.className = "orange";
-    } else {
-      statusDiv.textContent = "Behind Pace";
-      statusDiv.className = "red";
-    }
-  }
-
-  // -------- CLOCK --------
-  const canvas = document.getElementById("clock");
-  const ctx = canvas.getContext("2d");
-  const r = canvas.height / 2;
-  ctx.translate(r, r);
-
-  function drawClock() {
-    const now = new Date();
-    ctx.clearRect(-r, -r, canvas.width, canvas.height);
-
-    // face
-    ctx.beginPath();
-    ctx.arc(0, 0, r - 5, 0, 2 * Math.PI);
-    ctx.fillStyle = "#fff";
-    ctx.fill();
-    ctx.stroke();
-
-    const hour = now.getHours() % 12;
-    const min = now.getMinutes();
-    const sec = now.getSeconds();
-
-    drawHand((hour + min / 60) * Math.PI / 6, r * 0.5, 5);
-    drawHand(min * Math.PI / 30, r * 0.7, 3);
-    drawHand(sec * Math.PI / 30, r * 0.8, 2, "red");
-  }
-
-  function drawHand(pos, length, width, color = "#000") {
-    ctx.beginPath();
-    ctx.lineWidth = width;
-    ctx.strokeStyle = color;
-    ctx.lineCap = "round";
-    ctx.moveTo(0, 0);
-    ctx.rotate(pos);
-    ctx.lineTo(0, -length);
-    ctx.stroke();
-    ctx.rotate(-pos);
-  }
-
-  setInterval(() => {
-    drawClock();
-    update();
-  }, 1000);
-</script>
+    // update every minute
+    setInterval(updateIndicator, 60000);
+    updateIndicator();
+  </script>
 
 </body>
 </html>
