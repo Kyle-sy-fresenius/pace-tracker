@@ -1,139 +1,269 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Pace Tracker</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      margin-top: 60px;
-      background: #f5f5f5;
-    }
+<meta charset="UTF-8">
+<title>Production Dashboard</title>
 
-    h1 {
-      font-size: 42px;
-    }
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
-    #indicator {
-      margin: 25px auto;
-      width: 140px;
-      height: 140px;
-      border-radius: 50%;
-      background: red;
-      border: 5px solid black;
-    }
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:linear-gradient(to right,#4facfe,#00c6ff);
+  color:white;
+  text-align:center;
+  padding:30px;
+}
 
-    #status {
-      font-size: 24px;
-      font-weight: bold;
-    }
+.card{
+  width:520px;
+  margin:auto;
+  background:rgba(255,255,255,0.1);
+  border-radius:15px;
+  padding:20px;
+  backdrop-filter:blur(10px);
+}
 
-    #progress {
-      font-size: 20px;
-    }
+input{
+  padding:10px;
+  border:none;
+  border-radius:6px;
+  margin:10px;
+  width:160px;
+}
 
-    input {
-      font-size: 28px;
-      padding: 15px;
-      width: 260px;
-      text-align: center;
-      margin-top: 25px;
-    }
-  </style>
+button{
+  padding:10px 16px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  background:white;
+  font-weight:bold;
+}
+
+button:hover{opacity:0.85}
+
+.danger{background:#ff4d4d;color:white;}
+
+.inline{font-size:20px;margin:10px;}
+
+.dashboard{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:40px;
+  margin-top:20px;
+}
+
+#chartContainer{width:200px;}
+
+#statusCircle{
+  width:120px;
+  height:120px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:bold;
+  font-size:14px;
+  background:gray;
+  padding:10px;
+}
+
+#paceText{
+  margin-top:10px;
+  font-size:14px;
+}
+</style>
 </head>
+
 <body>
 
-  <h1>Total: <span id="total">0</span></h1>
+<h1>Production Dashboard</h1>
 
-  <div id="indicator"></div>
+<div class="card">
 
-  <p id="status">Enter a number</p>
-  <p id="progress">Progress: 0%</p>
+<!-- START -->
+<div id="initial">
+  <p>Enter total units for today's production:</p>
+  <input type="number" id="totalInput">
+  <button onclick="start()">Start</button>
+</div>
 
-  <input
-    type="number"
-    id="numberInput"
-    placeholder="Enter number + Enter"
-    autofocus
-  >
+<!-- MAIN -->
+<div id="main" style="display:none;">
 
-  <script>
-    let total = 0;
+  <div class="inline">Total: <span id="totalShow">0</span></div>
+  <div class="inline">Packed: <span id="packedShow">0</span></div>
 
-    const input = document.getElementById("numberInput");
-    const totalDisplay = document.getElementById("total");
-    const indicator = document.getElementById("indicator");
-    const statusText = document.getElementById("status");
-    const progressText = document.getElementById("progress");
+  <div>
+    <input id="addInput" type="number" placeholder="Add units">
+    <button onclick="add()">Add</button>
+  </div>
 
-    function getTargetByTime() {
-      const now = new Date();
+  <button class="danger" onclick="end()">End Production</button>
 
-      const start = new Date();
-      start.setHours(8, 30, 0, 0);
+  <div class="dashboard">
 
-      const threePM = new Date();
-      threePM.setHours(15, 0, 0, 0);
+    <div>
+      <div id="statusCircle">--</div>
+      <div id="paceText">--</div>
+    </div>
 
-      const eightPM = new Date();
-      eightPM.setHours(20, 0, 0, 0);
+    <div id="chartContainer">
+      <canvas id="chart"></canvas>
+    </div>
 
-      if (now <= start) return 0;
+  </div>
+</div>
 
-      if (now <= threePM) {
-        const progress = (now - start) / (threePM - start);
-        return progress * 5000;
-      }
+<div id="summary"></div>
 
-      if (now <= eightPM) {
-        const progress = (now - threePM) / (eightPM - threePM);
-        return 5000 + progress * 5000;
-      }
+</div>
 
-      return 10000; // cap after 8PM
-    }
+<script>
 
-    function updateIndicator() {
-      const target = getTargetByTime();
+let total=0;
+let packed=0;
+let chart;
 
-      let percent = 0;
-      if (target > 0) {
-        percent = (total / target) * 100;
-      }
+const startHour=8.5;
+const endHour=21.5;
 
-      progressText.textContent =
-        "Progress: " + percent.toFixed(1) + "% of current target";
+const users=["Kyle","Sofiya","Elamari","Osama"];
 
-      if (total >= target) {
-        indicator.style.background = "green";
-        statusText.textContent = "Green - on track";
-      } else if (total >= target * 0.6) {
-        indicator.style.background = "orange";
-        statusText.textContent = "Orange - close";
-      } else {
-        indicator.style.background = "red";
-        statusText.textContent = "Red - behind";
-      }
-    }
+function nowDecimal(){
+  const d=new Date();
+  return d.getHours()+d.getMinutes()/60;
+}
 
-    input.addEventListener("keydown", function(event) {
-      if (event.key === "Enter") {
-        const number = Number(input.value);
+function timeProgress(){
+  const n=nowDecimal();
+  if(n<=startHour)return 0;
+  if(n>=endHour)return 1;
+  return (n-startHour)/(endHour-startHour);
+}
 
-        if (!isNaN(number) && input.value !== "") {
-          total += number;
-          totalDisplay.textContent = total;
-          input.value = "";
-          input.focus();
-          updateIndicator();
+function start(){
+  total=parseFloat(document.getElementById("totalInput").value);
+  if(!total)return;
+
+  document.getElementById("initial").style.display="none";
+  document.getElementById("main").style.display="block";
+
+  document.getElementById("totalShow").innerText=total;
+
+  chart=new Chart(document.getElementById("chart"),{
+    type:"pie",
+    data:{
+      labels:["Done","Remaining"],
+      datasets:[{
+        data:[0,total],
+        backgroundColor:["#00ff88","#ff4d4d"]
+      }]
+    },
+    options:{
+      plugins:{
+        datalabels:{
+          color:"white",
+          formatter:(v,c)=>{
+            const d=c.chart.data.datasets[0].data;
+            const t=d[0]+d[1];
+            return ((v/t)*100).toFixed(0)+"%";
+          }
         }
       }
-    });
+    },
+    plugins:[ChartDataLabels]
+  });
 
-    // update every minute
-    setInterval(updateIndicator, 60000);
-    updateIndicator();
-  </script>
+  update();
+}
+
+function add(){
+  let v=parseFloat(document.getElementById("addInput").value);
+  if(!v)return;
+
+  packed+=v;
+  document.getElementById("packedShow").innerText=packed;
+  document.getElementById("addInput").value="";
+
+  update();
+}
+
+function update(){
+
+  let done=Math.min(packed,total);
+  let left=Math.max(total-packed,0);
+
+  chart.data.datasets[0].data=[done,left];
+  chart.update();
+
+  let prog=packed/total;
+  let time=timeProgress();
+
+  const box=document.getElementById("statusCircle");
+
+  if(prog>=time){
+    box.style.background="green";
+    box.innerText="On Track";
+  }else if(prog>=time-0.1){
+    box.style.background="orange";
+    box.innerText="Slightly Behind";
+  }else{
+    box.style.background="red";
+    box.innerText="Behind";
+  }
+
+  updatePace();
+}
+
+function updatePace(){
+  if(!packed)return;
+
+  const start=new Date();
+  start.setHours(8,30,0,0);
+
+  const hrs=(new Date()-start)/3600000;
+  if(hrs<=0)return;
+
+  const rate=packed/hrs;
+  if(rate<=0)return;
+
+  const finish=new Date(start.getTime()+ (total/rate)*3600000);
+
+  document.getElementById("paceText").innerText=
+    "At this pace you will complete everything at " +
+    String(finish.getHours()).padStart(2,"0")+":"+
+    String(finish.getMinutes()).padStart(2,"0");
+}
+
+function end(){
+
+  let pass=prompt("Enter password:");
+  if(!users.includes(pass)){
+    alert("Access denied");
+    return;
+  }
+
+  let pushed=total-packed;
+  let pct=((packed/total)*100).toFixed(1);
+
+  document.getElementById("main").style.display="none";
+
+  document.getElementById("summary").innerHTML=`
+    <h2>Final Report</h2>
+    <p>Packed: ${packed}</p>
+    <p>Pushed: ${pushed}</p>
+    <p>Completed: ${pct}%</p>
+  `;
+}
+
+setInterval(update,60000);
+
+</script>
 
 </body>
 </html>
